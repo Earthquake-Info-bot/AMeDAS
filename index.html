@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.1.12]アメダス観測一覧</title>
+<title>[v0.1.13]アメダス観測一覧</title>
 
 <style>
 body{
@@ -225,7 +225,11 @@ function buildHeader(){
 
   const tr = document.getElementById("thead-row");
 
+  tr.innerHTML = "<th>地点</th>"; // ★これ必須
+  
   for(const k in elements){
+
+    if(!state[k]) continue;
 
     const th = document.createElement("th");
     const e = elements[k];
