@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[0.1.10]アメダス観測一覧</title>
+<title>[v0.1.12]アメダス観測一覧</title>
 
 <style>
 body{
@@ -22,18 +22,31 @@ h1{
   margin:0 0 6px 0;
   font-size:12px;
 }
-body{
-  font-family:sans-serif;
-  margin:0;
-  padding:10px 20px;
-  background:#f5f5f5;
+
+#toggleSettings{
+  font-size:12px;
+  padding:4px 8px;
+  margin-bottom:6px;
+  cursor:pointer;
 }
 
+#settings{
+  display:none;
+  margin:6px 0 10px 0;
+}
+
+#settings label{
+  display:inline-block;
+  font-size:12px;
+  margin-right:8px;
+}
+
+/* ===== テーブル ===== */
 .table-wrap{
   overflow:auto;
   background:#fff;
   border-radius:10px;
-  max-height:calc(100vh - 120px);
+  max-height:calc(100vh - 150px);
 }
 
 table{
@@ -62,7 +75,7 @@ tr:nth-child(even){
   background:#fafafa;
 }
 
-/* ===== 地点 ===== */
+/* 地点 */
 .station-name{
   font-weight:bold;
   font-size:13px;
@@ -72,28 +85,25 @@ tr:nth-child(even){
 .station-code{
   font-size:10px;
   color:#666;
-  margin-top:1px; /* ←ここ詰める */
+  margin-top:1px;
   line-height:1;
 }
 
-/* ===== ヘッダー2段 ===== */
+/* ヘッダー */
 .th-name{
   font-weight:bold;
-  line-height:1.1;
 }
 
 .th-unit{
   font-size:11px;
   color:#bbb;
-  margin-top:1px; /* ←ここを小さく */
+  margin-top:1px;
   line-height:1;
 }
-  
-/* ===== 地点セル ===== */
+
 .station-cell{
   text-align:left;
 }
-  
 </style>
 </head>
 
@@ -101,6 +111,9 @@ tr:nth-child(even){
 
 <h1>アメダス観測一覧</h1>
 <div id="status">読み込み中...</div>
+
+<button id="toggleSettings">▼ 設定</button>
+<div id="settings"></div>
 
 <div class="table-wrap">
 <table>
@@ -124,7 +137,6 @@ const elements = {
   pressure:{name:"現地気圧",unit:"hPa"},
   normalPressure:{name:"海面更正気圧",unit:"hPa"},
   wind:{name:"平均風速",unit:"m/s"},
-  //windDirection:{name:"風向",unit:null},
   precipitation10m:{name:"10分降水量",unit:"mm/10min"},
   precipitation1h:{name:"1時間降水量",unit:"mm/h"},
   precipitation3h:{name:"3時間降水量",unit:"mm/3h"},
@@ -140,14 +152,54 @@ const elements = {
   weather:{name:"現在天気",unit:null}
 };
 
-// =====================
 // 風向
-// =====================
 const windDirectionMap = {
-  0:"静穏", 1:"北北東", 2:"北東", 3:"東北東", 4:"東", 5:"東南東",
-  6:"南東", 7:"南南東", 8:"南", 9:"南南西", 10:"南西", 11:"西南西",
-  12:"西", 13:"西北西", 14:"北西", 15:"北北西", 16:"北"
+  0:"静穏",1:"北北東",2:"北東",3:"東北東",4:"東",5:"東南東",
+  6:"南東",7:"南南東",8:"南",9:"南南西",10:"南西",11:"西南西",
+  12:"西",13:"西北西",14:"北西",15:"北北西",16:"北"
 };
+
+// =====================
+// 状態
+// =====================
+let state = {};
+let stationsCache = {};
+let amedasCache = {};
+
+// =====================
+// 設定UI
+// =====================
+const settings = document.getElementById("settings");
+const toggleSettings = document.getElementById("toggleSettings");
+
+toggleSettings.onclick = () => {
+  const open = settings.style.display === "block";
+  settings.style.display = open ? "none" : "block";
+  toggleSettings.textContent = open ? "▼ 設定" : "▲ 設定";
+};
+
+function buildControls(){
+  for(const key in elements){
+
+    state[key] = true;
+
+    const label = document.createElement("label");
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+
+    cb.onchange = () => {
+      state[key] = cb.checked;
+      buildTable(stationsCache, amedasCache);
+    };
+
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(elements[key].name));
+
+    settings.appendChild(label);
+  }
+}
 
 // =====================
 // 値取得
@@ -167,7 +219,7 @@ function getValue(obj,key){
 }
 
 // =====================
-// ヘッダー作成（2段）
+// ヘッダー
 // =====================
 function buildHeader(){
 
@@ -176,7 +228,6 @@ function buildHeader(){
   for(const k in elements){
 
     const th = document.createElement("th");
-
     const e = elements[k];
 
     th.innerHTML = `
@@ -189,16 +240,15 @@ function buildHeader(){
 }
 
 // =====================
-// 地点取得
+// fetch stations
 // =====================
 async function fetchStations(){
   const res = await fetch("./points.json");
-  if(!res.ok) throw new Error("points.json失敗");
   return await res.json();
 }
 
 // =====================
-// アメダス取得
+// fetch amedas
 // =====================
 async function fetchAmedas(){
 
@@ -213,10 +263,8 @@ async function fetchAmedas(){
     const url = `https://www.jma.go.jp/bosai/amedas/data/map/${t}.json`;
 
     try{
-
       const res = await fetch(url);
       if(!res.ok) throw new Error();
-
       const data = await res.json();
 
       document.getElementById("status").textContent =
@@ -225,7 +273,6 @@ async function fetchAmedas(){
       return data;
 
     }catch(e){
-
       date.setMinutes(date.getMinutes()-10);
     }
   }
@@ -237,20 +284,23 @@ async function fetchAmedas(){
 // 時刻
 // =====================
 function getTimeString(date){
-
-  const y = date.getFullYear();
-  const m = String(date.getMonth()+1).padStart(2,"0");
-  const d = String(date.getDate()).padStart(2,"0");
-  const h = String(date.getHours()).padStart(2,"0");
-  const mi = String(date.getMinutes()).padStart(2,"0");
-
-  return `${y}${m}${d}${h}${mi}00`;
+  return (
+    date.getFullYear() +
+    String(date.getMonth()+1).padStart(2,"0") +
+    String(date.getDate()).padStart(2,"0") +
+    String(date.getHours()).padStart(2,"0") +
+    String(date.getMinutes()).padStart(2,"0") +
+    "00"
+  );
 }
 
 // =====================
 // 表生成
 // =====================
 function buildTable(stations, amedas){
+
+  stationsCache = stations;
+  amedasCache = amedas;
 
   const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
@@ -271,30 +321,9 @@ function buildTable(stations, amedas){
     tr.appendChild(td0);
 
     for(const k in elements){
-    
-      // 風速だけ特別表示（風向もここで使う）
-      if(k === "wind"){
-    
-        const td = document.createElement("td");
-    
-        const speed = d?.wind?.[0];
-        const dir = d?.windDirection?.[0];
-    
-        let dirText = "--";
-        if(dir !== null && dir !== undefined){
-          dirText = windDirectionMap[dir] ?? "--";
-        }
-    
-        td.innerHTML = `
-          <div>${speed ?? "--"} m/s</div>
-          <div style="font-size:10px;color:#666;">${dirText}</div>
-        `;
-    
-        tr.appendChild(td);
-        continue;
-      }
-    
-      // その他はそのまま
+
+      if(!state[k]) continue;
+
       const td = document.createElement("td");
       td.textContent = getValue(d,k);
       tr.appendChild(td);
@@ -305,29 +334,21 @@ function buildTable(stations, amedas){
 }
 
 // =====================
-// 実行
+// 起動
 // =====================
 (async () => {
 
-  try{
+  const stations = await fetchStations();
 
-    const stations = await fetchStations();
+  buildHeader();
+  buildControls();
 
-    buildHeader();
+  const amedas = await fetchAmedas();
 
-    const amedas = await fetchAmedas();
-
-    buildTable(stations, amedas);
-
-  }catch(e){
-
-    console.error(e);
-
-    document.getElementById("status").textContent =
-      "読み込み失敗";
-  }
+  buildTable(stations, amedas);
 
 })();
+
 </script>
 
 </body>
