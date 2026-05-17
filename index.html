@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>アメダス観測一覧</title>
+<title>[v1.1.2]アメダス観測一覧</title>
 
 <style>
 body{
@@ -33,8 +33,7 @@ table{
   min-width:1400px;
 }
 
-th,
-td{
+th,td{
   border:1px solid #ddd;
   padding:8px;
   text-align:center;
@@ -59,10 +58,10 @@ tr:nth-child(even){
 }
 </style>
 </head>
+
 <body>
 
 <h1>アメダス観測一覧</h1>
-
 <div id="status">読み込み中...</div>
 
 <div class="table-wrap">
@@ -72,198 +71,110 @@ tr:nth-child(even){
         <th>地点</th>
       </tr>
     </thead>
-
     <tbody id="tbody"></tbody>
   </table>
 </div>
 
 <script>
-// ===== 表示項目 =====
+// =====================
+// 表示項目
+// =====================
 const elements = {
-  "temp": {
-    "name": "気温",
-    "unit": "℃"
-  },
-  "humidity": {
-    "name": "湿度",
-    "unit": "%"
-  },
-  "pressure": {
-    "name": "現地気圧",
-    "unit": "hPa"
-  },
-  "normalPressure": {
-    "name": "海面更正気圧",
-    "unit": "hPa"
-  },
-  "wind": {
-    "name": "平均風速",
-    "unit": "m/s"
-  },
-  "windDirection": {
-    "name": "風向",
-    "unit": null
-  },
-  "precipitation10m": {
-    "name": "10分降水量",
-    "unit": "mm/10min"
-  },
-  "precipitation1h": {
-    "name": "1時間降水量",
-    "unit": "mm/h"
-  },
-  "precipitation3h": {
-    "name": "3時間降水量",
-    "unit": "mm/3h"
-  },
-  "precipitation24h": {
-    "name": "24時間降水量",
-    "unit": "mm/24h"
-  },
-  "snow": {
-    "name": "積雪深",
-    "unit": "cm"
-  },
-  "snow1h": {
-    "name": "1時間降雪量",
-    "unit": "cm/h"
-  },
-  "snow6h": {
-    "name": "6時間降雪量",
-    "unit": "cm/6h"
-  },
-  "snow12h": {
-    "name": "12時間降雪量",
-    "unit": "cm/12h"
-  },
-  "snow24h": {
-    "name": "24時間降雪量",
-    "unit": "cm/24h"
-  },
-  "sun10m": {
-    "name": "10分間日照時間",
-    "unit": "分"
-  },
-  "sun1h": {
-    "name": "1時間日照時間",
-    "unit": "時間"
-  },
-  "visibility": {
-    "name": "視程",
-    "unit": "m"
-  },
-  "weather": {
-    "name": "現在天気",
-    "unit": null
-  }
+  temp: { name:"気温", unit:"℃" },
+  humidity: { name:"湿度", unit:"%" },
+  pressure: { name:"現地気圧", unit:"hPa" },
+  normalPressure: { name:"海面更正気圧", unit:"hPa" },
+  wind: { name:"平均風速", unit:"m/s" },
+  windDirection: { name:"風向", unit:null },
+  precipitation10m: { name:"10分降水量", unit:"mm/10min" },
+  precipitation1h: { name:"1時間降水量", unit:"mm/h" },
+  precipitation3h: { name:"3時間降水量", unit:"mm/3h" },
+  precipitation24h: { name:"24時間降水量", unit:"mm/24h" },
+  snow: { name:"積雪深", unit:"cm" },
+  snow1h: { name:"1時間降雪量", unit:"cm/h" },
+  snow6h: { name:"6時間降雪量", unit:"cm/6h" },
+  snow12h: { name:"12時間降雪量", unit:"cm/12h" },
+  snow24h: { name:"24時間降雪量", unit:"cm/24h" },
+  sun10m: { name:"10分日照", unit:"分" },
+  sun1h: { name:"1時間日照", unit:"時間" },
+  visibility: { name:"視程", unit:"m" },
+  weather: { name:"現在天気", unit:null }
 };
 
-// ===== 地点情報 =====
-const stations = {
-  "11001": {
-    "name": "宗谷岬"
-  },
-  "11016": {
-    "name": "稚内"
-  }
-};
-
-// ===== 風向 =====
+// =====================
+// 風向
+// =====================
 const windDirectionMap = {
-  0:"静穏",
-  1:"NNE",
-  2:"NE",
-  3:"ENE",
-  4:"E",
-  5:"ESE",
-  6:"SE",
-  7:"SSE",
-  8:"S",
-  9:"SSW",
-  10:"SW",
-  11:"WSW",
-  12:"W",
-  13:"WNW",
-  14:"NW",
-  15:"NNW",
-  16:"N"
+  0:"静穏",1:"NNE",2:"NE",3:"ENE",4:"E",5:"ESE",
+  6:"SE",7:"SSE",8:"S",9:"SSW",10:"SW",11:"WSW",
+  12:"W",13:"WNW",14:"NW",15:"NNW",16:"N"
 };
 
-// ===== 値取得 =====
-function getValue(obj, key){
+// =====================
+// 値取得
+// =====================
+function getValue(obj,key){
 
-  if(!obj || !(key in obj)){
-    return "--";
-  }
+  if(!obj || !(key in obj)) return "--";
 
-  const value = obj[key][0];
+  const v = obj[key][0];
 
-  if(value === null || value === undefined){
-    return "--";
-  }
+  if(v === null || v === undefined) return "--";
 
-  // 風向変換
   if(key === "windDirection"){
-    return windDirectionMap[value] ?? value;
+    return windDirectionMap[v] ?? v;
   }
 
-  return value;
+  return v;
 }
 
-// ===== yyyyMMddHHmm00 =====
+// =====================
+// 時刻生成
+// =====================
 function getTimeString(date){
-
   const yyyy = date.getFullYear();
-
-  const MM =
-    String(date.getMonth() + 1).padStart(2,"0");
-
-  const dd =
-    String(date.getDate()).padStart(2,"0");
-
-  const HH =
-    String(date.getHours()).padStart(2,"0");
-
-  const mm =
-    String(date.getMinutes()).padStart(2,"0");
-
+  const MM = String(date.getMonth()+1).padStart(2,"0");
+  const dd = String(date.getDate()).padStart(2,"0");
+  const HH = String(date.getHours()).padStart(2,"0");
+  const mm = String(date.getMinutes()).padStart(2,"0");
   return `${yyyy}${MM}${dd}${HH}${mm}00`;
 }
 
-// ===== 10分切り捨て =====
-function floor10Minutes(date){
-
+// =====================
+// 10分切り捨て
+// =====================
+function floor10(date){
   const d = new Date(date);
-
   d.setSeconds(0);
   d.setMilliseconds(0);
-
-  d.setMinutes(
-    Math.floor(d.getMinutes() / 10) * 10
-  );
-
+  d.setMinutes(Math.floor(d.getMinutes()/10)*10);
   return d;
 }
 
-// ===== データ取得 =====
+// =====================
+// stations取得
+// =====================
+async function fetchStations(){
+  const res = await fetch("./points.json");
+  if(!res.ok) throw new Error("points.json失敗");
+  return await res.json();
+}
+
+// =====================
+// アメダス取得
+// =====================
 async function fetchAmedas(){
 
-  let date = floor10Minutes(new Date());
+  let date = floor10(new Date());
 
   for(let i=0;i<20;i++){
 
     const timeString = getTimeString(date);
-
-    const url =
-      `https://www.jma.go.jp/bosai/amedas/data/map/${timeString}.json`;
+    const url = `https://www.jma.go.jp/bosai/amedas/data/map/${timeString}.json`;
 
     try{
-
       const res = await fetch(url);
-
-      if(!res.ok){
-        throw new Error("HTTP error");
-      }
+      if(!res.ok) throw new Error("HTTP");
 
       const data = await res.json();
 
@@ -272,73 +183,54 @@ async function fetchAmedas(){
 
       return data;
 
-    }catch(err){
-
-      console.error(
-        `${timeString} 取得失敗`,
-        err
-      );
+    }catch(e){
+      console.log(timeString,"失敗");
     }
 
-    // 10分戻す
-    date.setMinutes(date.getMinutes() - 10);
+    date.setMinutes(date.getMinutes()-10);
   }
 
-  throw new Error("取得失敗");
+  throw new Error("全部失敗");
 }
 
-// ===== ヘッダー生成 =====
+// =====================
+// ヘッダー
+// =====================
 function buildHeader(){
 
   const tr = document.getElementById("thead-row");
 
-  for(const key in elements){
-
+  for(const k in elements){
     const th = document.createElement("th");
-
-    const item = elements[key];
-
-    th.textContent =
-      item.unit
-      ? `${item.name} (${item.unit})`
-      : item.name;
-
+    const e = elements[k];
+    th.textContent = e.unit ? `${e.name}(${e.unit})` : e.name;
     tr.appendChild(th);
   }
 }
 
-// ===== 表生成 =====
-function buildTable(amedas){
+// =====================
+// テーブル
+// =====================
+function buildTable(stations, amedas){
 
   const tbody = document.getElementById("tbody");
-
   tbody.innerHTML = "";
 
   for(const code in stations){
 
-    const station = stations[code];
-
-    const data = amedas[code];
+    const st = stations[code];
+    const d = amedas[code];
 
     const tr = document.createElement("tr");
 
-    // 地点名
-    const stationTd =
-      document.createElement("td");
+    const td0 = document.createElement("td");
+    td0.className = "station";
+    td0.textContent = st.name;
+    tr.appendChild(td0);
 
-    stationTd.className = "station";
-
-    stationTd.textContent = station.name;
-
-    tr.appendChild(stationTd);
-
-    // 各観測値
-    for(const key in elements){
-
+    for(const k in elements){
       const td = document.createElement("td");
-
-      td.textContent = getValue(data, key);
-
+      td.textContent = getValue(d,k);
       tr.appendChild(td);
     }
 
@@ -346,23 +238,25 @@ function buildTable(amedas){
   }
 }
 
-// ===== 実行 =====
+// =====================
+// 実行
+// =====================
 (async () => {
-
-  buildHeader();
 
   try{
 
+    buildHeader();
+
+    const stations = await fetchStations();
     const amedas = await fetchAmedas();
 
-    buildTable(amedas);
+    buildTable(stations, amedas);
 
-  }catch(err){
+  }catch(e){
 
-    console.error(err);
-
+    console.error(e);
     document.getElementById("status").textContent =
-      "データ取得失敗";
+      "読み込み失敗";
   }
 
 })();
