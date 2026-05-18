@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.3.1]アメダス観測一覧</title>
+<title>[v0.4.1]アメダス観測一覧</title>
 
 <style>
 body{
@@ -198,90 +198,11 @@ const prefMap = {
   "91":"沖縄県", "92":"沖縄県", "93":"沖縄県", "94":"沖縄県"
 };
 
-// codeから都道府県コード(先頭2桁)を返す
-function prefCode(code){
-  return Math.floor(parseInt(code)/1000);
-}
-
 // codeから都道府県名（漢字）を返す
 function prefName(code){
   const key = String(code).slice(0, 2);
   return prefMap[key] ?? "";
 }
-
-// 全角数字→半角数字
-function toHalfNum(s){
-  return s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0)-0xFEE0));
-}
-
-// ひらがな→カタカナ
-function toKatakana(s){
-  return s.replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0)+0x60));
-}
-
-// カタカナ→ひらがな
-function toHiragana(s){
-  return s.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0)-0x60));
-}
-
-// ひらがな→ヘボン式ローマ字
-function toRomaji(hira){
-  const table = [
-    ["うぁ","wa"],["うぃ","wi"],["うぇ","we"],["うぉ","wo"],
-    ["きゃ","kya"],["きゅ","kyu"],["きょ","kyo"],
-    ["しゃ","sha"],["しゅ","shu"],["しょ","sho"],["し","shi"],
-    ["ちゃ","cha"],["ちゅ","chu"],["ちょ","cho"],["ち","chi"],
-    ["つぁ","tsa"],["つぃ","tsi"],["つぇ","tse"],["つぉ","tso"],["つ","tsu"],
-    ["にゃ","nya"],["にゅ","nyu"],["にょ","nyo"],
-    ["ひゃ","hya"],["ひゅ","hyu"],["ひょ","hyo"],
-    ["みゃ","mya"],["みゅ","myu"],["みょ","myo"],
-    ["りゃ","rya"],["りゅ","ryu"],["りょ","ryo"],
-    ["ぎゃ","gya"],["ぎゅ","gyu"],["ぎょ","gyo"],
-    ["じゃ","ja"],["じゅ","ju"],["じょ","jo"],["じ","ji"],
-    ["ぢゃ","ja"],["ぢゅ","ju"],["ぢょ","jo"],["ぢ","ji"],
-    ["びゃ","bya"],["びゅ","byu"],["びょ","byo"],
-    ["ぴゃ","pya"],["ぴゅ","pyu"],["ぴょ","pyo"],
-    ["ふぁ","fa"],["ふぃ","fi"],["ふぇ","fe"],["ふぉ","fo"],["ふ","fu"],
-    ["ゔぁ","va"],["ゔぃ","vi"],["ゔぇ","ve"],["ゔぉ","vo"],["ゔ","vu"],
-    ["てぃ","ti"],["でぃ","di"],["でゅ","dyu"],
-    ["っか","kka"],["っき","kki"],["っく","kku"],["っけ","kke"],["っこ","kko"],
-    ["っさ","ssa"],["っし","sshi"],["っす","ssu"],["っせ","sse"],["っそ","sso"],
-    ["った","tta"],["っち","cchi"],["っつ","ttsu"],["って","tte"],["っと","tto"],
-    ["っな","nna"],["っに","nni"],["っぬ","nnu"],["っね","nne"],["っの","nno"],
-    ["っは","hha"],["っひ","hhi"],["っふ","ffu"],["っへ","hhe"],["っほ","hho"],
-    ["っま","mma"],["っみ","mmi"],["っむ","mmu"],["っめ","mme"],["っも","mmo"],
-    ["っや","yya"],["っゆ","yyu"],["っよ","yyo"],
-    ["っら","rra"],["っり","rri"],["っる","rru"],["っれ","rre"],["っろ","rro"],
-    ["っわ","wwa"],["っを","wwo"],["っ","t"],
-    ["んあ","n'a"],["んい","n'i"],["んう","n'u"],["んえ","n'e"],["んお","n'o"],["ん","n"],
-    ["あ","a"],["い","i"],["う","u"],["え","e"],["お","o"],
-    ["か","ka"],["き","ki"],["く","ku"],["け","ke"],["こ","ko"],
-    ["さ","sa"],["す","su"],["せ","se"],["そ","so"],
-    ["た","ta"],["て","te"],["と","to"],
-    ["な","na"],["に","ni"],["ぬ","nu"],["ね","ne"],["の","no"],
-    ["は","ha"],["ひ","hi"],["へ","he"],["ほ","ho"],
-    ["ま","ma"],["み","mi"],["む","mu"],["め","me"],["も","mo"],
-    ["や","ya"],["ゆ","yu"],["よ","yo"],
-    ["ら","ra"],["り","ri"],["る","ru"],["れ","re"],["ろ","ro"],
-    ["わ","wa"],["を","wo"],
-    ["が","ga"],["ぎ","gi"],["ぐ","gu"],["げ","ge"],["ご","go"],
-    ["ざ","za"],["ず","zu"],["ぜ","ze"],["ぞ","zo"],
-    ["だ","da"],["づ","zu"],["で","de"],["ど","do"],
-    ["ば","ba"],["び","bi"],["ぶ","bu"],["べ","be"],["ぼ","bo"],
-    ["ぱ","pa"],["ぴ","pi"],["ぷ","pu"],["ぺ","pe"],["ぽ","po"],
-    ["ぁ","a"],["ぃ","i"],["ぅ","u"],["ぇ","e"],["ぉ","o"],
-    ["ゃ","ya"],["ゅ","yu"],["ょ","yo"],
-    ["ー",""],["、",""],["。",""],["・",""],
-  ];
-  let result = hira;
-  for(const [k,v] of table){
-    result = result.replaceAll(k,v);
-  }
-  return result;
-}
-
-// 漢字文字列をローマ字変換（ひらがな経由は不可なので、prefSearchのよみがなを使う）
-// 地点名はひらがなデータがないため、ローマ字マッチはprefSearchのみに適用
 
 // =====================
 // 検索クエリに一致するか判定
@@ -289,41 +210,18 @@ function toRomaji(hira){
 function matchStation(code, st, query){
   if(!query) return true;
 
-  const q = toHalfNum(query.trim().toLowerCase());
+  const q = query.trim().toLowerCase();
   if(!q) return true;
 
-  // クエリのひらがな・カタカナ両方を用意
-  const qHira = toHiragana(q);
-  const qKata = toKatakana(q);
-
   function hit(target){
-    const t = (target||"").toLowerCase();
-    return t.includes(q) || t.includes(qHira) || t.includes(qKata);
+    return (target || "").toLowerCase().includes(q);
   }
 
-  // 観測番号（全角半角対応）
+  // 観測番号
   if(String(code).includes(q)) return true;
 
-  // 地点名（漢字・ひらがな・カタカナ）
+  // 地点名
   if(hit(st.name)) return true;
-
-  // 都道府県マッチ
-  const pc = prefCode(code);
-  const pref = prefSearch.find(p => p.codes.includes(pc));
-  if(pref){
-    // 漢字・かな一致
-    if(pref.ja.some(j => hit(j))) return true;
-    // 英語・ローマ字一致（クエリがアルファベットのみの場合）
-    if(pref.en.some(e => e.includes(q))) return true;
-    // よみがな(ひらがな)をローマ字変換して部分一致
-    const yomi = pref.ja.find(j => /^[\u3041-\u3096]+$/.test(j));
-    if(yomi){
-      const romaji = toRomaji(yomi);
-      // 長音正規化: ou→o, oo→o, uu→u（hokkaido, tokyo等に対応）
-      const romajiNorm = romaji.replace(/ou/g,"o").replace(/oo/g,"o").replace(/uu/g,"u");
-      if(romaji.includes(q) || romajiNorm.includes(q)) return true;
-    }
-  }
 
   return false;
 }
