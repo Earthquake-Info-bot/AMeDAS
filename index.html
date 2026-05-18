@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.4.3]アメダス観測一覧</title>
+<title>[v0.4.4]アメダス観測一覧</title>
 
 <style>
 body{
@@ -337,10 +337,18 @@ async function fetchStations(){
 // =====================
 async function fetchAmedas(){
 
-  let date = new Date();
-  date.setSeconds(0);
-  date.setMilliseconds(0);
-  date.setMinutes(Math.floor(date.getMinutes()/10)*10);
+  // JST現在時刻
+  const now = new Date();
+
+  // 10分前へ
+  now.setMinutes(now.getMinutes() - 10);
+
+  // 10分単位へ切り捨て
+  now.setSeconds(0);
+  now.setMilliseconds(0);
+  now.setMinutes(Math.floor(now.getMinutes()/10)*10);
+
+  let date = now;
 
   for(let i=0;i<20;i++){
 
@@ -350,6 +358,7 @@ async function fetchAmedas(){
     try{
       const res = await fetch(url);
       if(!res.ok) throw new Error();
+
       const data = await res.json();
 
       document.getElementById("status").textContent =
@@ -358,11 +367,15 @@ async function fetchAmedas(){
       return data;
 
     }catch(e){
+
+      // 10分戻す
       date.setMinutes(date.getMinutes()-10);
     }
   }
 
-  document.getElementById("status").textContent = "データ取得失敗（時間をおいて再読み込みしてください）";
+  document.getElementById("status").textContent =
+    "データ取得失敗（時間をおいて再読み込みしてください）";
+
   throw new Error("取得失敗");
 }
 
