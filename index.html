@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.4.4]アメダス観測一覧</title>
+<title>[v0.4.5]アメダス観測一覧</title>
 
 <style>
 body{
@@ -337,27 +337,30 @@ async function fetchStations(){
 // =====================
 async function fetchAmedas(){
 
-  // JST現在時刻
-  const now = new Date();
+  let date = new Date();
 
-  // 10分前へ
-  now.setMinutes(now.getMinutes() - 10);
+  // 念のため10分前へ
+  date.setMinutes(date.getMinutes() - 10);
 
-  // 10分単位へ切り捨て
-  now.setSeconds(0);
-  now.setMilliseconds(0);
-  now.setMinutes(Math.floor(now.getMinutes()/10)*10);
+  // 10分単位へ丸め
+  date.setMinutes(Math.floor(date.getMinutes()/10)*10);
 
-  let date = now;
+  // 秒ミリ秒削除
+  date.setSeconds(0);
+  date.setMilliseconds(0);
 
   for(let i=0;i<20;i++){
 
     const t = getTimeString(date);
     const url = `https://www.jma.go.jp/bosai/amedas/data/map/${t}.json`;
 
+    console.log("FETCH:", url);
+
     try{
+
       const res = await fetch(url);
-      if(!res.ok) throw new Error();
+
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
 
@@ -368,13 +371,15 @@ async function fetchAmedas(){
 
     }catch(e){
 
+      console.warn("失敗:", t, e);
+
       // 10分戻す
-      date.setMinutes(date.getMinutes()-10);
+      date.setMinutes(date.getMinutes() - 10);
     }
   }
 
   document.getElementById("status").textContent =
-    "データ取得失敗（時間をおいて再読み込みしてください）";
+    "データ取得失敗";
 
   throw new Error("取得失敗");
 }
@@ -383,14 +388,12 @@ async function fetchAmedas(){
 // 時刻
 // =====================
 function getTimeString(date){
-  // JSTに変換（UTC+9）してフォーマット
-  const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
   return (
-    String(jst.getUTCFullYear()) +
-    String(jst.getUTCMonth()+1).padStart(2,"0") +
-    String(jst.getUTCDate()).padStart(2,"0") +
-    String(jst.getUTCHours()).padStart(2,"0") +
-    String(jst.getUTCMinutes()).padStart(2,"0") +
+    String(date.getFullYear()) +
+    String(date.getMonth()+1).padStart(2,"0") +
+    String(date.getDate()).padStart(2,"0") +
+    String(date.getHours()).padStart(2,"0") +
+    String(date.getMinutes()).padStart(2,"0") +
     "00"
   );
 }
