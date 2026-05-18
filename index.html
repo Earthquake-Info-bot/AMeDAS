@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.4.5]アメダス観測一覧</title>
+<title>[v0.5.1]アメダス観測一覧</title>
 
 <style>
 body{
@@ -11,34 +11,56 @@ body{
   margin:0;
   padding:8px 12px;
   background:#f5f5f5;
+  color: #333;
 }
 
 h1{
   margin:0 0 4px 0;
   font-size:18px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.header-controls {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 #status{
-  margin:0 0 6px 0;
-  font-size:12px;
+  font-size: 12px;
+  color: #666;
 }
 
-#toggleSettings{
+.btn {
   font-size:12px;
-  padding:4px 8px;
-  margin-bottom:6px;
+  padding:4px 10px;
   cursor:pointer;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  transition: all 0.2s;
 }
+.btn:hover { background: #eee; }
+.btn:active { background: #ddd; }
 
 #settings{
   display:none;
   margin:6px 0 10px 0;
+  background: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
 }
 
 #settings label{
   display:inline-block;
   font-size:12px;
-  margin-right:8px;
+  margin-right:12px;
+  margin-bottom: 4px;
+  cursor: pointer;
 }
 
 /* ===== テーブル ===== */
@@ -46,7 +68,8 @@ h1{
   overflow:auto;
   background:#fff;
   border-radius:10px;
-  max-height:calc(100vh - 150px);
+  max-height:calc(100vh - 160px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 table{
@@ -56,8 +79,8 @@ table{
 }
 
 th,td{
-  border:1px solid #ddd;
-  padding:4px 6px;
+  border:1px solid #eee;
+  padding:6px 8px;
   text-align:center;
   white-space:nowrap;
   font-size:12px;
@@ -66,13 +89,16 @@ th,td{
 thead th{
   position: sticky;
   top: 0;
-  z-index: 999;
-  background:#222;
+  z-index: 100;
+  background:#333;
   color:#fff;
 }
 
 tr:nth-child(even){
   background:#fafafa;
+}
+tr:hover {
+  background: #f0f7ff;
 }
 
 /* 地点 */
@@ -84,8 +110,8 @@ tr:nth-child(even){
 
 .station-code{
   font-size:10px;
-  color:#666;
-  margin-top:1px;
+  color:#888;
+  margin-top:2px;
   line-height:1;
 }
 
@@ -96,46 +122,65 @@ tr:nth-child(even){
 
 .th-unit{
   font-size:11px;
-  color:#bbb;
+  color:#ccc;
   margin-top:1px;
   line-height:1;
 }
 
 .station-cell{
   text-align:left;
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 10;
+  border-right: 2px solid #ddd;
+}
+tr:nth-child(even) .station-cell {
+  background: #fafafa;
+}
+thead th.station-cell {
+  z-index: 110;
+  background: #333;
+  color: #fff;
 }
 
 /* ===== 検索 ===== */
 #search-wrap{
-  margin-bottom:6px;
+  margin-bottom:8px;
   display:flex;
-  gap:6px;
+  gap:8px;
   align-items:center;
 }
 #search-input{
   flex:1;
   font-size:13px;
-  padding:5px 8px;
+  padding:6px 10px;
   border:1px solid #ccc;
   border-radius:6px;
   outline:none;
   max-width:400px;
 }
-#search-input:focus{ border-color:#555; }
+#search-input:focus{ border-color:#007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }
 #search-count{ font-size:12px; color:#666; white-space:nowrap; }
+
+/* ユーティリティ */
+.hidden { display: none; }
 </style>
 </head>
 
 <body>
 
-<h1>アメダス観測一覧</h1>
-<div id="status">読み込み中...</div>
+<div class="header-controls">
+  <h1>アメダス観測一覧</h1>
+  <div id="status">読み込み中...</div>
+  <button id="refreshBtn" class="btn">🔄 更新</button>
+  <button id="toggleSettings" class="btn">▼ 表示設定</button>
+</div>
 
-<button id="toggleSettings">▼ 設定</button>
 <div id="settings"></div>
 
 <div id="search-wrap">
-  <input id="search-input" type="search" placeholder="検索（地点名・県・観測番号など）">
+  <input id="search-input" type="search" placeholder="検索（地点名・県・観測番号など）" autocomplete="off">
   <span id="search-count"></span>
 </div>
 
@@ -143,7 +188,7 @@ tr:nth-child(even){
 <table>
 <thead>
 <tr id="thead-row">
-  <th>地点</th>
+  <th class="station-cell">地点</th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -151,7 +196,9 @@ tr:nth-child(even){
 </div>
 
 <script>
-
+let sortKey = null;
+let sortAsc = true;
+  
 // =====================
 // 表示項目
 // =====================
@@ -160,9 +207,8 @@ const elements = {
   humidity:{name:"湿度",unit:"%"},
   pressure:{name:"現地気圧",unit:"hPa"},
   normalPressure:{name:"海面更正気圧",unit:"hPa"},
-  wind:{name:"平均風速",unit:"m/s"},
-  //windDirection:{name:"風向",unit:null},
-  precipitation10m:{name:"10分降水量",unit:"mm/10min"},
+  wind:{name:"風速/風向",unit:"m/s"},
+  precipitation10m:{name:"10分降水量",unit:"mm/10m"},
   precipitation1h:{name:"1時間降水量",unit:"mm/h"},
   precipitation3h:{name:"3時間降水量",unit:"mm/3h"},
   precipitation24h:{name:"24時間降水量",unit:"mm/24h"},
@@ -177,14 +223,12 @@ const elements = {
   weather:{name:"現在天気",unit:null}
 };
 
-// 風向
 const windDirectionMap = {
   0:"静穏",1:"北北東",2:"北東",3:"東北東",4:"東",5:"東南東",
   6:"南東",7:"南南東",8:"南",9:"南南西",10:"南西",11:"西南西",
   12:"西",13:"西北西",14:"北西",15:"北北西",16:"北"
 };
 
-// 都道府県 よみがな・ローマ字・英語対応テーブル
 const prefMap = {
   "11":"北海道", "12":"北海道", "13":"北海道", "14":"北海道", "15":"北海道", "16":"北海道", "17":"北海道", "18":"北海道",
   "19":"北海道", "20":"北海道", "21":"北海道", "22":"北海道", "23":"北海道", "24":"北海道",
@@ -198,306 +242,312 @@ const prefMap = {
   "91":"沖縄県", "92":"沖縄県", "93":"沖縄県", "94":"沖縄県"
 };
 
-// codeから都道府県名（漢字）を返す
 function prefName(code){
   const key = String(code).slice(0, 2);
   return prefMap[key] ?? "";
 }
 
 // =====================
-// 検索クエリに一致するか判定
+// 状態管理
 // =====================
-function matchStation(code, st, query){
-  if(!query) return true;
-
-  const q = query.trim().toLowerCase();
-  if(!q) return true;
-
-  function hit(target){
-    return (target || "").toLowerCase().includes(q);
-  }
-
-  // 観測番号
-  if(String(code).includes(q)) return true;
-
-  // 地点名
-  if(hit(st.name)) return true;
-
-  // ★追加：都道府県名
-  const pref = prefName(code);
-  if(hit(pref)) return true;
-
-  return false;
-}
-
-// =====================
-// 検索UI
-// =====================
-let searchQuery = "";
-
-document.getElementById("search-input").addEventListener("input", e => {
-  searchQuery = e.target.value;
-  if(Object.keys(stationsCache).length === 0) return;
-  buildTable(stationsCache, amedasCache);
-});
-
-
 let state = {};
 let stationsCache = {};
 let amedasCache = {};
+let searchQuery = "";
+
+// 設定の読み込み
+function loadSettings() {
+  const saved = localStorage.getItem('amedas_settings');
+  if (saved) {
+    try {
+      state = JSON.parse(saved);
+    } catch(e) { state = {}; }
+  }
+  // 未定義の項目を初期化
+  for (const key in elements) {
+    if (state[key] === undefined) state[key] = true;
+  }
+}
+
+// 設定の保存
+function saveSettings() {
+  localStorage.setItem('amedas_settings', JSON.stringify(state));
+}
 
 // =====================
-// 設定UI
+// UI構築
 // =====================
-const settings = document.getElementById("settings");
-const toggleSettings = document.getElementById("toggleSettings");
+const settingsDiv = document.getElementById("settings");
+const toggleSettingsBtn = document.getElementById("toggleSettings");
+const refreshBtn = document.getElementById("refreshBtn");
+const searchInput = document.getElementById("search-input");
 
-toggleSettings.onclick = () => {
-  const open = settings.style.display === "block";
-  settings.style.display = open ? "none" : "block";
-  toggleSettings.textContent = open ? "▼ 設定" : "▲ 設定";
+toggleSettingsBtn.onclick = () => {
+  const isHidden = settingsDiv.style.display !== "block";
+  settingsDiv.style.display = isHidden ? "block" : "none";
+  toggleSettingsBtn.textContent = isHidden ? "▲ 表示設定" : "▼ 表示設定";
 };
 
+refreshBtn.onclick = () => updateData();
+
 function buildControls(){
+  settingsDiv.innerHTML = "";
   for(const key in elements){
-
-    state[key] = true;
-
     const label = document.createElement("label");
-
     const cb = document.createElement("input");
     cb.type = "checkbox";
-    cb.checked = true;
+    cb.checked = state[key];
 
     cb.onchange = () => {
       state[key] = cb.checked;
+      saveSettings();
       buildHeader();
       buildTable(stationsCache, amedasCache);
     };
 
     label.appendChild(cb);
-    label.appendChild(document.createTextNode(elements[key].name));
-
-    settings.appendChild(label);
+    label.appendChild(document.createTextNode(" " + elements[key].name));
+    settingsDiv.appendChild(label);
   }
 }
 
-// =====================
-// 値取得
-// =====================
-function getValue(obj,key){
-
-  if(!obj || !(key in obj)) return "--";
-
-  const v = obj[key][0];
-  if(v === null || v === undefined) return "--";
-
-  if(key === "windDirection"){
-    return windDirectionMap[v] ?? v;
-  }
-
-  return v;
-}
-
-// =====================
-// ヘッダー
-// =====================
 function buildHeader(){
-
   const tr = document.getElementById("thead-row");
+  tr.innerHTML = '<th class="station-cell">地点</th>';
 
-  tr.innerHTML = "<th>地点</th>"; // ★これ必須
-  
   for(const k in elements){
-
     if(!state[k]) continue;
 
     const th = document.createElement("th");
     const e = elements[k];
 
+    // ソートマーク
+    let mark = "";
+    if(sortKey === k){
+      mark = sortAsc ? " ▲" : " ▼";
+    }
+
     th.innerHTML = `
-      <div class="th-name">${e.name}</div>
+      <div class="th-name">${e.name}${mark}</div>
       ${e.unit ? `<div class="th-unit">${e.unit}</div>` : ``}
     `;
+
+    th.style.cursor = "pointer";
+
+    th.onclick = () => {
+
+      if(sortKey === k){
+        sortAsc = !sortAsc;
+      }else{
+        sortKey = k;
+        sortAsc = false; // 初回は大きい順おすすめ
+      }
+
+      buildHeader();
+      buildTable(stationsCache, amedasCache);
+    };
 
     tr.appendChild(th);
   }
 }
 
 // =====================
-// fetch stations
+// データ取得
 // =====================
 async function fetchStations(){
   const res = await fetch("./points.json");
+  if(!res.ok) throw new Error("地点データの取得に失敗しました");
   return await res.json();
 }
 
-// =====================
-// fetch amedas
-// =====================
-async function fetchAmedas(){
-
-  let date = new Date();
-
-  // 念のため10分前へ
-  date.setMinutes(date.getMinutes() - 10);
-
-  // 10分単位へ丸め
-  date.setMinutes(Math.floor(date.getMinutes()/10)*10);
-
-  // 秒ミリ秒削除
-  date.setSeconds(0);
-  date.setMilliseconds(0);
-
-  for(let i=0;i<20;i++){
-
-    const t = getTimeString(date);
-    const url = `https://www.jma.go.jp/bosai/amedas/data/map/${t}.json`;
-
-    console.log("FETCH:", url);
-
-    try{
-
-      const res = await fetch(url);
-
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data = await res.json();
-
-      document.getElementById("status").textContent =
-        `データ時刻: ${t}`;
-
-      return data;
-
-    }catch(e){
-
-      console.warn("失敗:", t, e);
-
-      // 10分戻す
-      date.setMinutes(date.getMinutes() - 10);
-    }
-  }
-
-  document.getElementById("status").textContent =
-    "データ取得失敗";
-
-  throw new Error("取得失敗");
-}
-
-// =====================
-// 時刻
-// =====================
 function getTimeString(date){
+  const tzOffset = date.getTimezoneOffset() * 60 * 1000;
+  const utc = new Date(date.getTime() + tzOffset);
+  const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000);
+  
   return (
-    String(date.getFullYear()) +
-    String(date.getMonth()+1).padStart(2,"0") +
-    String(date.getDate()).padStart(2,"0") +
-    String(date.getHours()).padStart(2,"0") +
-    String(date.getMinutes()).padStart(2,"0") +
+    String(jst.getUTCFullYear()) +
+    String(jst.getUTCMonth()+1).padStart(2,"0") +
+    String(jst.getUTCDate()).padStart(2,"0") +
+    String(jst.getUTCHours()).padStart(2,"0") +
+    String(jst.getUTCMinutes()).padStart(2,"0") +
     "00"
   );
 }
 
-// =====================
-// 表生成
-// =====================
-function buildTable(stations, amedas){
+async function fetchAmedas(){
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - 10);
+  now.setSeconds(0);
+  now.setMilliseconds(0);
+  now.setMinutes(Math.floor(now.getMinutes()/10)*10);
 
+  let date = now;
+  for(let i=0; i<20; i++){
+    const t = getTimeString(date);
+    const url = `https://www.jma.go.jp/bosai/amedas/data/map/${t}.json`;
+    try{
+      const res = await fetch(url);
+      if(!res.ok) throw new Error();
+      const data = await res.json();
+      
+      // 表示用の時刻フォーマット
+      const displayTime = `${t.substring(0,4)}/${t.substring(4,6)}/${t.substring(6,8)} ${t.substring(8,10)}:${t.substring(10,12)}`;
+      document.getElementById("status").textContent = `データ時刻: ${displayTime}`;
+      return data;
+    }catch(e){
+      date.setMinutes(date.getMinutes()-10);
+    }
+  }
+  throw new Error("最新データが見つかりません（気象庁の更新待ちの可能性があります）");
+}
+
+// =====================
+// テーブル描画
+// =====================
+function getValue(obj, key){
+  if(!obj || !(key in obj)) return "--";
+  const v = obj[key][0];
+  return (v === null || v === undefined) ? "--" : v;
+}
+
+function buildTable(stations, amedas){
   stationsCache = stations;
   amedasCache = amedas;
 
   const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
 
+  const q = searchQuery.trim().toLowerCase();
   let count = 0;
-  const total = Object.keys(stations).length;
+  let codes = Object.keys(stations);
 
-  for(const code in stations){
+  if(sortKey){
+  
+    codes.sort((a,b)=>{
+  
+      const av = amedas[a]?.[sortKey]?.[0];
+      const bv = amedas[b]?.[sortKey]?.[0];
+  
+      // -- は最後
+      if(av == null && bv == null) return 0;
+      if(av == null) return 1;
+      if(bv == null) return -1;
+  
+      // 数値比較
+      if(typeof av === "number" && typeof bv === "number"){
+        return sortAsc ? av - bv : bv - av;
+      }
+  
+      // 文字比較
+      return sortAsc
+        ? String(av).localeCompare(String(bv),"ja")
+        : String(bv).localeCompare(String(av),"ja");
+    });
+  }
 
+  codes.forEach(code => {
     const st = stations[code];
-
-    if(!matchStation(code, st, searchQuery)) continue;
+    const pref = prefName(code);
+    
+    // 検索フィルタ
+    if(q) {
+      const match = code.includes(q) || 
+                    st.name.toLowerCase().includes(q) || 
+                    pref.includes(q);
+      if(!match) return;
+    }
 
     count++;
     const d = amedas[code];
-
     const tr = document.createElement("tr");
 
+    // 地点セル
     const td0 = document.createElement("td");
     td0.className = "station-cell";
-
-    const nameDiv = document.createElement("div");
-    nameDiv.className = "station-name";
-    nameDiv.textContent = `${prefName(code)} ${st.name}`;
-
-    const codeDiv = document.createElement("div");
-    codeDiv.className = "station-code";
-    codeDiv.textContent = code;
-
-    td0.appendChild(nameDiv);
-    td0.appendChild(codeDiv);
+    td0.innerHTML = `
+      <div class="station-name">${pref} ${st.name}</div>
+      <div class="station-code">${code}</div>
+    `;
     tr.appendChild(td0);
 
+    // データセル
     for(const k in elements){
+      if(!state[k]) continue;
+      const td = document.createElement("td");
 
-      // 風速だけ特別表示（風向もここで使う）
       if(k === "wind"){
-    
-        const td = document.createElement("td");
-    
         const speed = d?.wind?.[0];
         const dir = d?.windDirection?.[0];
-    
-        let dirText = "--";
-        if(dir !== null && dir !== undefined){
-          dirText = windDirectionMap[dir] ?? "--";
-        }
-    
+        const dirText = (dir !== null && dir !== undefined) ? (windDirectionMap[dir] ?? "--") : "--";
         td.innerHTML = `
-          <div>${speed ?? "--"} m/s</div>
+          <div>${speed ?? "--"} <span style="font-size:10px;color:#888;">m/s</span></div>
           <div style="font-size:10px;color:#666;">${dirText}</div>
         `;
-    
-        tr.appendChild(td);
-        continue;
+      } else {
+        td.textContent = getValue(d, k);
       }
-    
-      // その他はそのまま
-      const td = document.createElement("td");
-      td.textContent = getValue(d,k);
       tr.appendChild(td);
     }
-
     tbody.appendChild(tr);
-  }
+  });
 
-  document.getElementById("search-count").textContent =
-    searchQuery ? `${count} / ${total} 件` : `${total} 件`;
+  document.getElementById("search-count").textContent = 
+    q ? `${count} / ${codes.length} 件` : `${codes.length} 件`;
 }
 
 // =====================
-// 起動
+// 検索処理（デバウンス）
+// =====================
+let searchTimer;
+searchInput.addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchQuery = e.target.value;
+    buildTable(stationsCache, amedasCache);
+  }, 200);
+});
+
+// =====================
+// 全体更新
+// =====================
+async function updateData() {
+  refreshBtn.disabled = true;
+  refreshBtn.textContent = "⌛...";
+  const oldStatus = document.getElementById("status").textContent;
+  document.getElementById("status").textContent = "更新中...";
+
+  try {
+    const [stations, amedas] = await Promise.all([
+      Object.keys(stationsCache).length ? stationsCache : fetchStations(),
+      fetchAmedas()
+    ]);
+    buildTable(stations, amedas);
+  } catch(e) {
+    document.getElementById("status").textContent = `エラー: ${e.message}`;
+    setTimeout(() => { document.getElementById("status").textContent = oldStatus; }, 3000);
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = "🔄 更新";
+  }
+}
+
+// =====================
+// 初期化
 // =====================
 (async () => {
-
-  try{
+  loadSettings();
+  buildControls();
+  buildHeader();
+  try {
     const stations = await fetchStations();
-
-    buildControls(); // stateを先に初期化してからヘッダーを生成
-    buildHeader();
-
     const amedas = await fetchAmedas();
-
     buildTable(stations, amedas);
-
-  }catch(e){
-    document.getElementById("status").textContent =
-      `エラー: ${e.message}`;
+  } catch(e) {
+    document.getElementById("status").textContent = `エラー: ${e.message}`;
   }
-
 })();
 
 </script>
-
 </body>
 </html>
