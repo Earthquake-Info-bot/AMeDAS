@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.2.1]アメダス観測一覧</title>
+<title>[v0.2.2]アメダス観測一覧</title>
 
 <style>
 body{
@@ -161,7 +161,7 @@ const elements = {
   pressure:{name:"現地気圧",unit:"hPa"},
   normalPressure:{name:"海面更正気圧",unit:"hPa"},
   wind:{name:"平均風速",unit:"m/s"},
-  windDirection:{name:"風向",unit:null},
+  //windDirection:{name:"風向",unit:null},
   precipitation10m:{name:"10分降水量",unit:"mm/10min"},
   precipitation1h:{name:"1時間降水量",unit:"mm/h"},
   precipitation3h:{name:"3時間降水量",unit:"mm/3h"},
@@ -560,8 +560,29 @@ function buildTable(stations, amedas){
 
     for(const k in elements){
 
-      if(!state[k]) continue;
-
+      // 風速だけ特別表示（風向もここで使う）
+      if(k === "wind"){
+    
+        const td = document.createElement("td");
+    
+        const speed = d?.wind?.[0];
+        const dir = d?.windDirection?.[0];
+    
+        let dirText = "--";
+        if(dir !== null && dir !== undefined){
+          dirText = windDirectionMap[dir] ?? "--";
+        }
+    
+        td.innerHTML = `
+          <div>${speed ?? "--"} m/s</div>
+          <div style="font-size:10px;color:#666;">${dirText}</div>
+        `;
+    
+        tr.appendChild(td);
+        continue;
+      }
+    
+      // その他はそのまま
       const td = document.createElement("td");
       td.textContent = getValue(d,k);
       tr.appendChild(td);
