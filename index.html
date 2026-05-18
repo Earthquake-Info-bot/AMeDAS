@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.5.2]アメダス観測一覧</title>
+<title>[v0.5.3]アメダス観測一覧</title>
 
 <style>
 body{
@@ -165,6 +165,14 @@ thead th.station-cell {
 
 /* ユーティリティ */
 .hidden { display: none; }
+
+footer{
+  margin-top:12px;
+  padding:8px 0;
+  font-size:11px;
+  color:#777;
+  text-align:center;
+}
 </style>
 </head>
 
@@ -194,6 +202,11 @@ thead th.station-cell {
 <tbody id="tbody"></tbody>
 </table>
 </div>
+
+<footer>
+  © NAFY / Jin Yoiyami<br>
+  情報元：気象庁アメダスデータ
+</footer>
 
 <script>
 let sortKey = null;
@@ -264,8 +277,31 @@ function loadSettings() {
     } catch(e) { state = {}; }
   }
   // 未定義の項目を初期化
+  const defaultState = {
+    temp: true,
+    humidity: true,
+    pressure: false,
+    normalPressure: false,
+    wind: true,
+    precipitation10m: true,
+    precipitation1h: true,
+    precipitation3h: false,
+    precipitation24h: false,
+    snow: true,
+    snow1h: false,
+    snow6h: false,
+    snow12h: false,
+    snow24h: false,
+    sun10m: false,
+    sun1h: false,
+    visibility: false,
+    weather: false
+  };
+  
   for (const key in elements) {
-    if (state[key] === undefined) state[key] = true;
+    if (state[key] === undefined) {
+      state[key] = defaultState[key] ?? false;
+    }
   }
 }
 
