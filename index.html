@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.5.1]アメダス観測一覧</title>
+<title>[v0.5.2]アメダス観測一覧</title>
 
 <style>
 body{
@@ -361,16 +361,12 @@ async function fetchStations(){
 }
 
 function getTimeString(date){
-  const tzOffset = date.getTimezoneOffset() * 60 * 1000;
-  const utc = new Date(date.getTime() + tzOffset);
-  const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000);
-  
   return (
-    String(jst.getUTCFullYear()) +
-    String(jst.getUTCMonth()+1).padStart(2,"0") +
-    String(jst.getUTCDate()).padStart(2,"0") +
-    String(jst.getUTCHours()).padStart(2,"0") +
-    String(jst.getUTCMinutes()).padStart(2,"0") +
+    String(date.getFullYear()) +
+    String(date.getMonth()+1).padStart(2,"0") +
+    String(date.getDate()).padStart(2,"0") +
+    String(date.getHours()).padStart(2,"0") +
+    String(date.getMinutes()).padStart(2,"0") +
     "00"
   );
 }
