@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.6.1]アメダス観測一覧</title>
+<title>[v0.6.2]アメダス観測一覧</title>
 
 <style>
 body{
@@ -330,7 +330,7 @@ toggleSettingsBtn.onclick = () => {
 
 refreshBtn.onclick = () => updateData();
 orderBtn.onclick = () => {
-  const value = prompt("yyyyMMddHHmm形式で日時を入力（10分より細かい時刻は使用できません）");
+  const value = prompt("日時を入力（例：20260519123000）※10分単位のみ対応");
   updateOrderData(value);
 };
 
@@ -440,7 +440,10 @@ async function fetchAmedas(targetDateTime){
       return data;
 
     }catch(e){
-      if (targetDateTime) targetDateTime = null;
+      if (targetDateTime) {
+        targetDateTime = null;
+        alert("過去データの検索に失敗しました。実況データを表示します");
+      }
       date.setMinutes(date.getMinutes()-10);
     }
   }
