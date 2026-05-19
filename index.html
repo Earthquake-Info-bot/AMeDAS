@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[v0.5.4]アメダス観測一覧</title>
+<title>[v0.6.1]アメダス観測一覧</title>
 
 <style>
 body{
@@ -184,6 +184,7 @@ footer{
   <h1>アメダス観測一覧</h1>
   <div id="status">読み込み中...</div>
   <button id="refreshBtn" class="btn">🔄 更新</button>
+  <button id="orderBtn" class="btn">⏰ 日時を指定して更新</button>
   <button id="toggleSettings" class="btn">▼ 表示設定</button>
 </div>
 
@@ -319,6 +320,7 @@ const settingsDiv = document.getElementById("settings");
 const toggleSettingsBtn = document.getElementById("toggleSettings");
 const refreshBtn = document.getElementById("refreshBtn");
 const searchInput = document.getElementById("search-input");
+const orderBtn = document.getElementById("orderBtn");
 
 toggleSettingsBtn.onclick = () => {
   const isHidden = settingsDiv.style.display !== "block";
@@ -327,6 +329,10 @@ toggleSettingsBtn.onclick = () => {
 };
 
 refreshBtn.onclick = () => updateData();
+orderBtn.onclick = () => {
+  const value = prompt("yyyyMMddHHmm形式で日時を入力（10分より細かい時刻は使用できません）");
+  updateOrderData(value);
+};
 
 function buildControls(){
   settingsDiv.innerHTML = "";
@@ -409,7 +415,7 @@ function getTimeString(date){
   );
 }
 
-async function fetchAmedas(){
+async function fetchAmedas(targetDateTime){
   const now = new Date();
   now.setMinutes(now.getMinutes() - 10);
   now.setSeconds(0);
@@ -417,23 +423,29 @@ async function fetchAmedas(){
   now.setMinutes(Math.floor(now.getMinutes()/10)*10);
 
   let date = now;
+
   for(let i=0; i<20; i++){
-    const t = getTimeString(date);
+    const t = targetDateTime || getTimeString(date);
     const url = `https://www.jma.go.jp/bosai/amedas/data/map/${t}.json`;
+
     try{
       const res = await fetch(url);
       if(!res.ok) throw new Error();
+
       const data = await res.json();
-      
-      // 表示用の時刻フォーマット
-      const displayTime = `${t.substring(0,4)}/${t.substring(4,6)}/${t.substring(6,8)} ${t.substring(8,10)}:${t.substring(10,12)}`;
-      document.getElementById("status").textContent = `データ時刻: ${displayTime}`;
+
+      document.getElementById("status").textContent =
+        `データ時刻: ${t.substring(0,4)}/${t.substring(4,6)}/${t.substring(6,8)} ${t.substring(8,10)}:${t.substring(10,12)}`;
+
       return data;
+
     }catch(e){
+      if (targetDateTime) targetDateTime = null;
       date.setMinutes(date.getMinutes()-10);
     }
   }
-  throw new Error("最新データが見つかりません（気象庁の更新待ちの可能性があります）");
+
+  throw new Error("最新データが見つかりません");
 }
 
 // =====================
@@ -563,6 +575,32 @@ async function updateData() {
   } finally {
     refreshBtn.disabled = false;
     refreshBtn.textContent = "🔄 更新";
+  }
+}
+
+async function updateOrderData(targetDateTime) {
+  orderBtn.disabled = true;
+  orderBtn.textContent = "⌛...";
+
+  const oldStatus = document.getElementById("status").textContent;
+  document.getElementById("status").textContent = "更新中...";
+
+  try {
+    const [stations, amedas] = await Promise.all([
+      Object.keys(stationsCache).length ? stationsCache : fetchStations(),
+      fetchAmedas(targetDateTime)
+    ]);
+
+    buildTable(stations, amedas);
+
+  } catch (e) {
+    document.getElementById("status").textContent = `エラー: ${e.message}`;
+    setTimeout(() => {
+      document.getElementById("status").textContent = oldStatus;
+    }, 3000);
+  } finally {
+    orderBtn.disabled = false;
+    orderBtn.textContent = "⏰ 日時を指定して更新";
   }
 }
 
